@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Task Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Weekly Task Manager</h1>
+            <div class="week-navigation">
+                <button id="prev-week" class="nav-btn">← Previous Week</button>
+                <div class="week-info">
+                    <span id="current-week"></span>
+                </div>
+                <button id="next-week" class="nav-btn">Next Week →</button>
+            </div>
+            <div id="sim-bar" class="sim-bar" style="display:none;">
+                <span id="sim-day-label" class="sim-day-label"></span>
+                <div class="sim-progress-track">
+                    <div id="sim-progress-fill" class="sim-progress-fill"></div>
+                </div>
+                <span id="sim-countdown" class="sim-countdown"></span>
+                <button id="sim-stop-btn" class="sim-stop-btn">✕ Stop</button>
+            </div>
+            <div class="actions">
+                <button id="simulate-week-btn" class="action-btn sim-btn">⏱ Simulate Week (1 min)</button>
+                <button id="import-notes-btn" class="action-btn">Import from Notes</button>
+                <button id="import-btn" class="action-btn">Import JSON</button>
+                <button id="export-btn" class="action-btn">Export Data</button>
+                <input type="file" id="import-file" accept=".json" style="display: none;">
+                <input type="file" id="import-notes-files" accept=".txt" multiple style="display: none;">
+                <input type="file" id="import-notes-folder" accept=".txt" multiple webkitdirectory style="display: none;">
+            </div>
+        </header>
+
+        <main class="task-board">
+            <div class="task-column" data-status="todo">
+                <div class="column-header">
+                    <h2>TODO</h2>
+                    <span class="task-count">0</span>
+                </div>
+                <div class="add-task">
+                    <input type="text" placeholder="Add new task..." class="task-input">
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="task-list" id="todo-list"></div>
+            </div>
+
+            <div class="task-column" data-status="in-progress">
+                <div class="column-header">
+                    <h2>In Progress</h2>
+                    <span class="task-count">0</span>
+                </div>
+                <div class="add-task">
+                    <input type="text" placeholder="Add new task..." class="task-input">
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="task-list" id="in-progress-list"></div>
+            </div>
+
+            <div class="task-column" data-status="follow-up">
+                <div class="column-header">
+                    <h2>Follow Up</h2>
+                    <span class="task-count">0</span>
+                </div>
+                <div class="add-task">
+                    <input type="text" placeholder="Add new task..." class="task-input">
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="task-list" id="follow-up-list"></div>
+            </div>
+
+            <div class="task-column" data-status="completed">
+                <div class="column-header">
+                    <h2>Completed</h2>
+                    <span class="task-count">0</span>
+                </div>
+                <div class="add-task">
+                    <input type="text" placeholder="Add new task..." class="task-input">
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="task-list" id="completed-list"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notes Import Modal -->
+    <div id="notes-import-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import from Notes</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="paste">Paste Text</button>
+                <button class="tab-btn" data-tab="files">Import Files/Folder</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Paste Tab -->
+                <div id="paste-tab" class="tab-content active">
+                    <p>Paste your notes below. Each line or bullet point will become a task.</p>
+                    <textarea id="notes-textarea" placeholder="Paste your notes here...
+Examples:
+- Task one
+- Task two
+• Another task
+1. Numbered task
+Plain text task"></textarea>
+
+                    <div class="import-options">
+                        <label for="target-list">Import to:</label>
+                        <select id="target-list">
+                            <option value="todo">TODO</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="follow-up">Follow Up</option>
+                            <option value="completed">Completed</option>
+                        </select>
+
+                        <label>
+                            <input type="checkbox" id="clear-existing" />
+                            Clear existing tasks in target list
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Files Tab -->
+                <div id="files-tab" class="tab-content">
+                    <p><strong>Import from Notes App Folder Structure</strong></p>
+                    <p class="help-text">Export your Notes folder as .txt files, then select them here. Each file should have this structure:</p>
+                    <div class="example-structure">
+                        <pre>TODO (04/13 - 04/17)
+- Task one
+- Task two
+
+INPR (or In Progress)
+- Task three
+
+FOLL (or Follow Up)
+- Task four
+
+DONE (or Completed)
+- Task five</pre>
+                    </div>
+
+                    <div class="file-select-buttons">
+                        <button id="select-files-btn" class="file-select-btn">
+                            📄 Select Files (.txt)
+                        </button>
+                        <button id="select-folder-btn" class="file-select-btn">
+                            📁 Select Folder
+                        </button>
+                    </div>
+
+                    <div id="files-selected" class="files-info">
+                        No files selected
+                    </div>
+
+                    <div class="import-options">
+                        <label>
+                            <input type="checkbox" id="auto-detect-week" checked />
+                            Auto-detect week from date in file (e.g., "04/13 - 04/17")
+                        </label>
+                        <label>
+                            <input type="checkbox" id="merge-with-existing" checked />
+                            Merge with existing tasks (uncheck to replace)
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancel-import" class="cancel-btn">Cancel</button>
+                <button id="process-import" class="save-btn">Import Tasks</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
