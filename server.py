@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 import sys
 
 DATA_FILE = 'tasks-data.json'
@@ -18,19 +18,20 @@ class TodoHandler(SimpleHTTPRequestHandler):
 
         # API endpoint to get tasks
         if parsed_path.path == '/api/tasks':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-
-            # Load tasks from file
+            # Read data before sending headers so we know Content-Length
             if os.path.exists(DATA_FILE):
                 with open(DATA_FILE, 'r') as f:
-                    data = f.read()
+                    data = f.read().strip() or '{}'
             else:
                 data = '{}'
 
-            self.wfile.write(data.encode())
+            encoded = data.encode()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-Length', str(len(encoded)))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(encoded)
             return
 
         # Serve static files
