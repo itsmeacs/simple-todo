@@ -2,6 +2,7 @@ class TaskManager {
     constructor() {
         this.currentWeekOffset = 0;
         this.tasks = {};
+        this.loadSucceeded = false;
         this.init();
     }
 
@@ -108,17 +109,20 @@ class TaskManager {
             const response = await fetch('/api/tasks');
             if (response.ok) {
                 this.tasks = await response.json();
+                this.loadSucceeded = true;
             } else {
-                console.error('Failed to load tasks from server');
-                this.tasks = {};
+                console.error('Failed to load tasks from server — saves disabled to prevent data loss');
             }
         } catch (error) {
-            console.error('Error loading tasks:', error);
-            this.tasks = {};
+            console.error('Failed to load tasks from server — saves disabled to prevent data loss', error);
         }
     }
 
     async saveTasks() {
+        if (!this.loadSucceeded) {
+            console.error('Skipping save — initial load did not succeed');
+            return;
+        }
         try {
             const response = await fetch('/api/tasks', {
                 method: 'POST',

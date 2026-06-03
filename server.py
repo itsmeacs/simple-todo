@@ -5,6 +5,7 @@ Simple HTTP server for Todo app with file-based persistence
 
 import json
 import os
+import tempfile
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import sys
@@ -48,9 +49,12 @@ class TodoHandler(SimpleHTTPRequestHandler):
                 # Validate JSON
                 json_data = json.loads(post_data.decode())
 
-                # Write to file
-                with open(DATA_FILE, 'w') as f:
-                    f.write(json.dumps(json_data, indent=2))
+                # Atomic write: write to temp file then rename so a crash mid-write can't corrupt data
+                dir_name = os.path.dirname(os.path.abspath(DATA_FILE))
+                with tempfile.NamedTemporaryFile('w', dir=dir_name, delete=False, suffix='.tmp') as tmp:
+                    tmp.write(json.dumps(json_data, indent=2))
+                    tmp_path = tmp.name
+                os.replace(tmp_path, DATA_FILE)
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
