@@ -74,7 +74,14 @@ class TaskManager {
         const date = new Date();
         date.setDate(date.getDate() + (this.currentWeekOffset * 7));
         const weekStart = this.getWeekStart(date);
-        return `week-${weekStart.toISOString().split('T')[0]}`;
+        return `week-${this.localDateString(weekStart)}`;
+    }
+
+    localDateString(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     getWeekStart(date) {
@@ -102,6 +109,14 @@ class TaskManager {
 
         const weekText = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
         document.getElementById('current-week').textContent = weekText;
+
+        // Disable Next Week when already on current week
+        document.getElementById('next-week').disabled = this.currentWeekOffset >= 0;
+
+        // Disable Prev Week when week start would go before Jan 1 2026
+        const prevWeekStart = new Date(weekStart);
+        prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+        document.getElementById('prev-week').disabled = prevWeekStart.getFullYear() < 2026;
     }
 
     async loadTasks() {
@@ -118,6 +133,12 @@ class TaskManager {
         }
     }
 
+    sortedTasks() {
+        return Object.fromEntries(
+            Object.entries(this.tasks).sort(([a], [b]) => a.localeCompare(b))
+        );
+    }
+
     async saveTasks() {
         if (!this.loadSucceeded) {
             console.error('Skipping save — initial load did not succeed');
@@ -129,7 +150,7 @@ class TaskManager {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(this.tasks)
+                body: JSON.stringify(this.sortedTasks())
             });
 
             if (!response.ok) {
@@ -554,50 +575,14 @@ class TaskManager {
                 this.closeNotesImportModal();
             }
         });
-    }
 
-    attachDragListeners() {
-        const taskItems = document.querySelectorAll('.task-item');
-
-        taskItems.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                item.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', item.innerHTML);
-                e.dataTransfer.setData('taskId', item.dataset.taskId);
-                e.dataTransfer.setData('fromStatus', item.dataset.status);
-            });
-
-            item.addEventListener('dragend', () => {
-                item.classList.remove('dragging');
-            });
-
-            // Support drag over other items for reordering
-            item.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                const dragging = document.querySelector('.dragging');
-                const afterElement = this.getDragAfterElement(item.parentElement, e.clientY);
-
-                if (dragging && dragging !== item) {
-                    if (afterElement == null) {
-                        item.parentElement.appendChild(dragging);
-                    } else {
-                        item.parentElement.insertBefore(dragging, afterElement);
-                    }
-                }
-            });
-        });
-
-        const taskLists = document.querySelectorAll('.task-list');
-
-        taskLists.forEach(list => {
+        // List-level drag listeners registered once here to avoid accumulation
+        document.querySelectorAll('.task-list').forEach(list => {
             list.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-
                 const dragging = document.querySelector('.dragging');
                 const afterElement = this.getDragAfterElement(list, e.clientY);
-
                 if (dragging && afterElement == null) {
                     list.appendChild(dragging);
                 } else if (dragging && afterElement) {
@@ -610,13 +595,39 @@ class TaskManager {
                 const taskId = e.dataTransfer.getData('taskId');
                 const fromStatus = e.dataTransfer.getData('fromStatus');
                 const toStatus = list.id.replace('-list', '');
-
                 if (fromStatus !== toStatus) {
-                    // Moving to different list
                     this.moveTask(fromStatus, toStatus, taskId);
                 } else {
-                    // Reordering within same list
                     this.reorderTasks(toStatus);
+                }
+            });
+        });
+    }
+
+    attachDragListeners() {
+        document.querySelectorAll('.task-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', item.innerHTML);
+                e.dataTransfer.setData('taskId', item.dataset.taskId);
+                e.dataTransfer.setData('fromStatus', item.dataset.status);
+            });
+
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dragging = document.querySelector('.dragging');
+                const afterElement = this.getDragAfterElement(item.parentElement, e.clientY);
+                if (dragging && dragging !== item) {
+                    if (afterElement == null) {
+                        item.parentElement.appendChild(dragging);
+                    } else {
+                        item.parentElement.insertBefore(dragging, afterElement);
+                    }
                 }
             });
         });
@@ -772,12 +783,13 @@ class TaskManager {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const imported = JSON.parse(e.target.result);
                 if (confirm('This will replace all existing data. Continue?')) {
                     this.tasks = imported;
-                    this.saveTasks();
+                    this.loadSucceeded = true;
+                    await this.saveTasks();
                     this.renderAllTasks();
                     alert('Data imported successfully!');
                 }

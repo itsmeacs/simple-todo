@@ -62,6 +62,11 @@ h1 {
     background: #5568d3;
 }
 
+.nav-btn:disabled {
+    background: #c3c9f5;
+    cursor: not-allowed;
+}
+
 .sim-btn {
     background: #ed8936;
 }
